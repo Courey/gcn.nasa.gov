@@ -19,6 +19,8 @@ export interface Circular extends CircularMetadata {
   createdOn: number
   body: string
   submitter: string
+  eventId?: string
+  synonyms?: string[]
   submittedHow?: SubmittedHow
 }
 

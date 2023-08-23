@@ -249,6 +249,27 @@ export async function put(
   })
 }
 
+export async function update(
+  request: Request,
+  circularId: number,
+  eventId?: string,
+  synonyms?: string[]
+) {
+  const db = await tables()
+
+  await db.circulars.update({
+    Key: { circularId },
+    UpdateExpression: 'set #eventId = :eventId, #synonyms = :synonyms',
+    ExpressionAttributeNames: {
+      '#eventId': 'eventId',
+      '#synonyms': 'synonyms',
+    },
+    ExpressionAttributeValues: { ':eventId': eventId, ':synonyms': synonyms },
+  })
+
+  return await db.circulars.get({ circularId })
+}
+
 export async function circularRedirect(query: string) {
   const validCircularSearchStyles =
     /^\s*(?:GCN)?\s*(?:CIRCULAR)?\s*(-?\d+(?:\.\d)?)\s*$/i
