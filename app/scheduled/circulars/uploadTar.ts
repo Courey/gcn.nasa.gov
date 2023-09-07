@@ -42,7 +42,7 @@ async function uploadStream(tarContext: TarContext) {
   )
 }
 
-export async function makeTarFile({
+async function makeTarFile({
   pack,
   circulars,
   fileType,
