@@ -19,7 +19,7 @@ import {
   parseEventFromSubject,
   subjectIsValid,
 } from './circulars.lib'
-import type { Circular, CircularMetadata } from './circulars.lib'
+import type { Circular, CircularGroupMetadata, CircularMetadata } from './circulars.lib'
 import { search as getSearch } from '~/lib/search.server'
 
 // A type with certain keys required.
@@ -207,6 +207,144 @@ export async function get(circularId: number): Promise<Circular> {
       status: 404,
     })
   return result
+}
+
+
+export async function getUniqueSynonymsArrays({
+  limit = 10,
+  page,
+  eventId,
+}: {
+  limit?: number
+  page: number
+  eventId?: string
+}): Promise<{
+  synonyms: string[][]
+  totalItems: number
+  totalPages: number
+  page: number
+}> {
+  const client = await getSearch()
+  const from = (page - 1) * limit
+  const {
+    body: {
+      hits: {
+        total: { value: totalItems },
+        hits,
+      },
+    },
+  } = await client.search({
+    index: 'synonyms',
+    from,
+    size: limit,
+    body: {
+      query: {
+        bool: {
+          must: eventId
+            ? {
+                match: {
+                  id: `*${eventId}*`,
+                },
+              }
+            : { match_all: {} },
+        },
+      },
+    },
+  })
+
+  const totalPages: number = Math.ceil(totalItems / limit)
+  const items = hits.map(
+    ({ _id: id }: { _id: string; fields: { id: string } }) =>
+      id.split(',').map((s) => s.trim())
+  )
+
+  return {
+    synonyms: items,
+    totalItems,
+    totalPages,
+    page,
+  }
+}
+
+export async function getCircularsGroupedBySynonyms({
+  synonyms,
+  limit = 10,
+}: {
+  synonyms?: string[][]
+  limit?: number
+}): Promise<{
+  totalPages: number
+  results: CircularGroupMetadata
+}> {
+  if (!synonyms) {
+    return {
+      totalPages: 0,
+      results: {} as CircularGroupMetadata,
+    }
+  }
+  const client = await getSearch()
+
+  const shouldClauses = synonyms.map((synonym) => ({
+    terms: { 'synonyms.keyword': synonym },
+  }))
+  const query = {
+    index: 'circulars',
+    body: {
+      size: limit,
+      query: {
+        bool: {
+          should: shouldClauses,
+        },
+      },
+      aggs: {
+        synonyms_group: {
+          terms: {
+            field: 'synonyms.keyword',
+            size: 100,
+          },
+          aggs: {
+            circulars: {
+              top_hits: {
+                size: 100,
+              },
+            },
+          },
+        },
+      },
+    },
+  }
+
+  const response = await client.search(query)
+
+  const {
+    body: {
+      aggregations: {
+        synonyms_group: { buckets },
+      },
+      hits: { total },
+    },
+  } = response
+
+  await client.close()
+
+  const totalPages = Math.ceil(total.value / limit)
+
+  const results = buckets.map((bucket: any) => {
+    const synonym = bucket.key
+    const circulars = bucket.circulars.hits.hits.map(
+      (hit: any) => hit._source
+    ) as Circular[]
+    return {
+      id: synonym,
+      circulars,
+    }
+  })
+  const groupResult = { groups: results } as CircularGroupMetadata
+
+  return {
+    totalPages,
+    results: groupResult,
+  }
 }
 
 /** Delete a circular by ID.

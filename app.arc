@@ -66,6 +66,10 @@ circulars
   circularId *Number
   PointInTimeRecovery true
 
+synonyms
+  id *String
+  PointInTimeRecovery true
+
 auto_increment_metadata
   tableName *String
   PointInTimeRecovery true
@@ -78,7 +82,7 @@ legacy_users
 email_notification_subscription
   topic *String
   name byTopic
-  
+
 email_notification
   recipient *String
   name byRecipient
@@ -106,9 +110,6 @@ circulars_subscriptions
 legacy_users
   receive *Number
   name legacyReceivers
-
-synonyms
-  id *String
 
 @aws
 runtime nodejs18.x
