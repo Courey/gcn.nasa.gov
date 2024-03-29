@@ -6,6 +6,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 export interface Synonym {
-  eventId: string
+  eventId: string[]
   synonymId: string
 }

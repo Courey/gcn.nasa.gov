@@ -6,23 +6,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import { tables } from '@architect/functions'
-import type { DynamoDBDocument } from '@aws-sdk/lib-dynamodb/dist-types/DynamoDBDocument'
 import { search as getSearchClient } from '@nasa-gcn/architect-functions-search'
-import crypto from 'crypto'
 
 import type { Synonym } from './synonyms.lib'
 
-export async function getSynonymsByUuid(synonymId: string) {
+export async function getSynonym(synonymId: string) {
   const db = await tables()
-  const { Items } = await db.synonyms.query({
-    IndexName: 'synonymsByUuid',
-    KeyConditionExpression: 'synonymId = :synonymId',
-    ExpressionAttributeValues: {
-      ':synonymId': synonymId,
-    },
-  })
+  const result = await db.synonyms.get({ synonymId })
 
-  return Items as Synonym[]
+  return result as Synonym
 }
 
 export async function searchSynonymsByEventId({
@@ -79,18 +71,16 @@ export async function searchSynonymsByEventId({
   })
 
   const totalPages: number = Math.ceil(totalItems / limit)
-  const results: Record<string, string[]> = {}
 
-  hits.forEach(
+  const results = hits.map(
     ({
       _source: body,
     }: {
       _source: Synonym
       fields: { eventId: string; synonymId: string }
-    }) =>
-      results[body.synonymId]
-        ? results[body.synonymId].push(body.eventId)
-        : (results[body.synonymId] = [body.eventId])
+    }) => {
+      return body
+    }
   )
 
   return {
@@ -101,107 +91,21 @@ export async function searchSynonymsByEventId({
   }
 }
 
-/*
- * If an eventId already has a synonym and is passed in, it will unlink the
- * eventId from the old synonym and the only remaining link will be to the
- * new synonym.
- *
- * BatchWriteItem has a limit of 25 items, so the user may not add more than
- * 25 synonyms at a time.
- */
-export async function createSynonyms(synonymousEventIds: string[]) {
-  const uuid = crypto.randomUUID()
-
-  if (synonymousEventIds.length > 0) {
-    const db = await tables()
-    const client = db._doc as unknown as DynamoDBDocument
-    const TableName = db.name('synonyms')
-
-    await client.batchWrite({
-      RequestItems: {
-        [TableName]: synonymousEventIds.map((eventId) => ({
-          PutRequest: {
-            Item: { synonymId: uuid, eventId },
-          },
-        })),
-      },
-    })
-  }
-
-  return uuid
-}
-
-/*
- * If an eventId already has a synonym and is passed in, it will unlink the
- * eventId from the old synonym and the only remaining link will be to the
- * new synonym.
- *
- * BatchWriteItem has a limit of 25 items, so the user may not add and/or remove
- *  more than 25 synonyms at a time.
- */
 export async function putSynonyms({
   synonymId,
-  additions,
-  subtractions,
+  synonyms,
 }: {
   synonymId: string
-  additions?: string[]
-  subtractions?: string[]
+  synonyms?: string[]
 }) {
-  if (!subtractions?.length && !additions?.length) return
   const db = await tables()
-  const client = db._doc as unknown as DynamoDBDocument
-  const TableName = db.name('synonyms')
-  const writes = []
-  if (subtractions?.length) {
-    const subtraction_writes = subtractions.map((eventId) => ({
-      DeleteRequest: {
-        Key: { eventId },
-      },
-    }))
-    writes.push(...subtraction_writes)
-  }
-  if (additions?.length) {
-    const addition_writes = additions.map((eventId) => ({
-      PutRequest: {
-        Item: { synonymId, eventId },
-      },
-    }))
-    writes.push(...addition_writes)
-  }
-  const params = {
-    RequestItems: {
-      [TableName]: writes,
-    },
-  }
-  await client.batchWrite(params)
+  await db.synonyms.put({
+    synonymId,
+    eventId: synonyms,
+  })
 }
 
-/*
- * BatchWriteItem has a limit of 25 items, so the user may not delete
- *  more than 25 synonyms at a time.
- */
 export async function deleteSynonyms(synonymId: string) {
   const db = await tables()
-  const client = db._doc as unknown as DynamoDBDocument
-  const TableName = db.name('synonyms')
-  const results = await db.synonyms.query({
-    IndexName: 'synonymsByUuid',
-    KeyConditionExpression: 'synonymId = :synonymId',
-    ProjectionExpression: 'eventId',
-    ExpressionAttributeValues: {
-      ':synonymId': synonymId,
-    },
-  })
-  const writes = results.Items.map(({ eventId }) => ({
-    DeleteRequest: {
-      Key: { eventId },
-    },
-  }))
-  const params = {
-    RequestItems: {
-      [TableName]: writes,
-    },
-  }
-  await client.batchWrite(params)
+  await db.synonyms.delete({ synonymId })
 }

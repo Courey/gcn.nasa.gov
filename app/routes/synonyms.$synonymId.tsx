@@ -14,18 +14,16 @@ import invariant from 'tiny-invariant'
 
 import {
   deleteSynonyms,
-  getSynonymsByUuid,
+  getSynonym,
   putSynonyms,
 } from './synonyms/synonyms.server'
 import { getFormDataString } from '~/lib/utils'
 
 export async function loader({ params: { synonymId } }: LoaderFunctionArgs) {
   invariant(synonymId)
-  const synonyms = await getSynonymsByUuid(synonymId)
-  const eventIds = synonyms.map((synonym) => synonym.eventId)
-
+  const synonym = await getSynonym(synonymId)
   return {
-    eventIds,
+    synonym,
   }
 }
 
@@ -38,16 +36,11 @@ export async function action({
   const intent = getFormDataString(data, 'intent')
 
   if (intent === 'edit') {
-    const additions =
-      getFormDataString(data, 'addSynonyms')?.split(',') || ([] as string[])
-    const filtered_additions = additions.filter((add) => add)
-    const subtractions =
-      getFormDataString(data, 'deleteSynonyms')?.split(',') || ([] as string[])
-    const filtered_subtractions = subtractions.filter((sub) => sub)
+    const synonyms =
+      getFormDataString(data, 'synonyms')?.split(',') || ([] as string[])
     await putSynonyms({
       synonymId,
-      additions: filtered_additions,
-      subtractions: filtered_subtractions,
+      synonyms,
     })
     return null
   } else if (intent === 'delete') {
@@ -61,10 +54,10 @@ export async function action({
 }
 
 export default function () {
-  const { eventIds } = useLoaderData<typeof loader>()
-  const [deleteSynonyms, setDeleteSynonyms] = useState([] as string[])
-  const [synonyms, setSynonyms] = useState(eventIds || [])
-  const [addSynonyms, setAddSynonyms] = useState([] as string[])
+  const { synonym } = useLoaderData<typeof loader>()
+  if (!synonym) throw new Response(null, { status: 404 })
+  const initialEventIds = synonym.eventId
+  const [synonyms, setSynonyms] = useState(initialEventIds || [])
   const [newSynonym, setNewSynonym] = useState('')
 
   return (
@@ -91,18 +84,12 @@ export default function () {
           </Form>
         </ButtonGroup>
       </ButtonGroup>
-      <p>
-        Synonym groupings are limited to 25 synonymous event identifiers. If you
-        are adding an event identifier that is already part of a group, it will
-        be removed from the previous association and added to this group.
-      </p>
       <Form>
         <FormGroup>
           <ButtonGroup>
             <input
               placeholder="event id"
-              value={newSynonym}
-              key="synonym"
+              key="synonyms"
               onChange={(e) => {
                 setNewSynonym(e.currentTarget.value)
               }}
@@ -110,25 +97,12 @@ export default function () {
             <Button
               type="button"
               onClick={(e) => {
-                if (!newSynonym) return
-                setDeleteSynonyms(
-                  deleteSynonyms.filter(function (item) {
-                    return item !== newSynonym
-                  })
-                )
                 const existingSynonyms = [...synonyms, newSynonym].filter(
                   function (v, i, self) {
                     return i == self.indexOf(v)
                   }
                 )
                 setSynonyms(existingSynonyms)
-                const additionalSynonyms = [...addSynonyms, newSynonym].filter(
-                  function (v, i, self) {
-                    return i == self.indexOf(v)
-                  }
-                )
-                setAddSynonyms(additionalSynonyms)
-                setNewSynonym('')
               }}
             >
               <Icon.Add role="presentation" /> Add
@@ -136,35 +110,22 @@ export default function () {
           </ButtonGroup>
         </FormGroup>
       </Form>
-      <Form
-        method="POST"
-        onSubmit={() => {
-          setAddSynonyms([])
-          setDeleteSynonyms([])
-        }}
-      >
+      <Form method="POST">
         <input type="hidden" name="intent" value="edit" />
         <FormGroup>
-          <input type="hidden" name="deleteSynonyms" value={deleteSynonyms} />
-          <input type="hidden" name="addSynonyms" value={addSynonyms} />
+          <input type="hidden" name="synonyms" value={synonyms} />
           <ul className="usa-list usa-list--unstyled">
-            {synonyms?.map((synonym) => (
-              <li key={synonym}>
+            {synonyms.map((syn) => (
+              <li key={syn}>
                 <ButtonGroup>
-                  {synonym}
+                  {syn}
                   <Button
                     className="usa-button--unstyled"
                     type="button"
                     onClick={() => {
-                      setDeleteSynonyms((oldArray) => [...oldArray, synonym])
                       setSynonyms(
                         synonyms.filter(function (item) {
-                          return item !== synonym
-                        })
-                      )
-                      setAddSynonyms(
-                        synonyms.filter(function (item) {
-                          return item !== synonym
+                          return item !== syn
                         })
                       )
                     }}
@@ -177,10 +138,7 @@ export default function () {
           </ul>
         </FormGroup>
         <FormGroup>
-          <Button
-            type="submit"
-            disabled={!addSynonyms.length && !deleteSynonyms.length}
-          >
+          <Button type="submit" disabled={synonyms === initialEventIds}>
             Save
           </Button>
         </FormGroup>
