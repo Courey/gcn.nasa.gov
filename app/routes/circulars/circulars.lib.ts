@@ -235,3 +235,10 @@ export function parseEventFromSubject(value: string) {
     if (match) return normalize(match)
   }
 }
+
+
+
+export interface CircularGroupingMetadata {
+  synonymId: string
+  circulars: CircularMetadata[]
+}

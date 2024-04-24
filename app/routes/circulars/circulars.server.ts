@@ -18,6 +18,7 @@ import memoizee from 'memoizee'
 import { dedent } from 'ts-dedent'
 
 import { type User, getUser } from '../_auth/user.server'
+import { Synonym } from '../synonyms/synonyms.lib'
 import {
   bodyIsValid,
   formatAuthor,
@@ -28,6 +29,7 @@ import {
 import type {
   Circular,
   CircularChangeRequest,
+  CircularGroupingMetadata,
   CircularMetadata,
 } from './circulars.lib'
 import { sendEmail } from '~/lib/email.server'
@@ -396,8 +398,8 @@ export async function createChangeRequest(
     to: [user.email],
     fromName: 'GCN Circulars',
     subject: 'GCN Circulars Change Request: Received',
-    body: dedent`Your change request has been created for GCN Circular ${item.circularId}. 
-    
+    body: dedent`Your change request has been created for GCN Circular ${item.circularId}.
+
     You will receive another email when your request has been reviewed.`,
   })
 }
@@ -453,8 +455,8 @@ export async function deleteChangeRequest(
     to: [requestorEmail],
     fromName: 'GCN Circulars',
     subject: 'GCN Circulars Change Request: Rejected',
-    body: dedent`Your change request has been rejected for GCN Circular ${circularId}. 
-    
+    body: dedent`Your change request has been rejected for GCN Circular ${circularId}.
+
     View the Circular at ${origin}/circulars/${circularId}`,
   })
 }
@@ -514,8 +516,8 @@ export async function approveChangeRequest(
     to: [changeRequest.requestorEmail],
     fromName: 'GCN Circulars',
     subject: 'GCN Circulars Change Request: Approved',
-    body: dedent`Your change request has been approved for GCN Circular ${changeRequest.circularId}. 
-    
+    body: dedent`Your change request has been approved for GCN Circular ${changeRequest.circularId}.
+
     View the Circular at ${origin}/circulars/${changeRequest.circularId}`,
   })
 }
@@ -551,4 +553,119 @@ function validateCircular({
   if (!bodyIsValid(body)) throw new Response('body is invalid', { status: 400 })
   if (!(format === undefined || formatIsValid(format)))
     throw new Response('format is invalid', { status: 400 })
+}
+
+// export async function getCircularsByEventIds(
+//   eventIds: string[]
+// ): Promise<Circular[]> {
+//   const db = await tables()
+//   const promises = eventIds.map(async (eventId) => {
+//     const params = {
+//       TableName: 'circulars',
+//       IndexName: 'circularsByEventId',
+//       KeyConditionExpression: 'eventId = :eventId',
+//       ExpressionAttributeValues: {
+//         ':eventId': eventId,
+//       },
+//     }
+
+//     const result = await db.circulars.query(params)
+
+//     if (result.Items) {
+//       const circulars: Circular[] = result.Items as Circular[]
+//       return circulars
+//     } else {
+//       return [] as Circular[]
+//     }
+//   })
+//   const results = await Promise.all(promises)
+//   return results.flat()
+// }
+
+export async function getCircularsByEventIds(
+  eventIds: string[]
+): Promise<Circular[]> {
+  const db = await tables()
+  const promises = eventIds.map(async (eventId) => {
+    const params = {
+      TableName: 'circulars',
+      IndexName: 'circularsByEventId',
+      KeyConditionExpression: 'eventId = :eventId',
+      ExpressionAttributeValues: {
+        ':eventId': eventId,
+      },
+    }
+
+    const result = await db.circulars.query(params)
+
+    return result.Items as Circular[]
+  })
+
+  const results = await Promise.all(promises)
+
+  return results.flat()
+}
+
+// export async function groupCircularsBySynonyms({
+//   synonyms,
+//   circulars,
+// }: {
+//   synonyms: Synonym[]
+//   circulars: Circular[]
+// }) {
+//   const circularDictionary = {} as Record<string, Circular>
+//   circulars.forEach((circular) => {
+//     if (!circular.eventId) return
+//     circularDictionary[circular.eventId] = circular
+//   })
+//   const groupedCirculars = [] as CircularGroupingMetadata[]
+//   synonyms.forEach((synonym: Synonym) => {
+//     const circularArray = [] as Circular[]
+//     synonym.eventId.forEach(event=>{
+//       circularArray.push(circularDictionary[event])
+//     })
+//     groupedCirculars.push({
+//       synonymId: synonym.synonymId,
+//       circulars: circularArray
+//     })
+
+//   })
+//   return { groups: groupedCirculars }
+// }
+
+export async function groupCircularsBySynonyms({
+  synonyms,
+  circulars,
+}: {
+  synonyms: Synonym[]
+  circulars: Circular[]
+}) {
+  const circularMap = new Map<string, Circular>()
+
+  circulars.forEach((circular) => {
+    if (circular.eventId) {
+      circularMap.set(circular.eventId, circular)
+    }
+  })
+
+  const groupedCirculars = [] as CircularGroupingMetadata[]
+  const circularSet = new Set<Circular>()
+
+  synonyms.forEach((synonym: Synonym) => {
+    synonym.eventId.forEach((eventId) => {
+      const circular = circularMap.get(eventId)
+      if (circular) {
+        circularSet.add(circular)
+      }
+    })
+
+    groupedCirculars.push({
+      synonymId: synonym.synonymId,
+      circulars: Array.from(circularSet),
+    })
+
+    circularSet.clear()
+  })
+
+  return { groups: groupedCirculars }
 }
