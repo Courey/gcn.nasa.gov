@@ -17,6 +17,7 @@ import {
   getSynonymsByUuid,
   putSynonyms,
 } from './synonyms/synonyms.server'
+import { ToolbarButtonGroup } from '~/components/ToolbarButtonGroup'
 import { getFormDataString } from '~/lib/utils'
 
 export async function loader({ params: { synonymId } }: LoaderFunctionArgs) {
@@ -52,7 +53,7 @@ export async function action({
     return null
   } else if (intent === 'delete') {
     await deleteSynonyms(synonymId)
-    return redirect('/synonyms')
+    return redirect('/synonyms/moderation')
   } else {
     throw new Response('Unknown intent.', {
       status: 400,
@@ -69,47 +70,54 @@ export default function () {
 
   return (
     <>
-      <ButtonGroup>
-        <h1>Synonym Group</h1>
-        <ButtonGroup className="margin-bottom-2">
-          <Link to="/synonyms" className="usa-button">
-            <div className="display-inline">
-              <Icon.ArrowBack
-                role="presentation"
-                className="position-relative"
-              />
-            </div>
-          </Link>
-          <Form method="POST">
-            <input type="hidden" name="intent" value="delete" />
-            <Button type="submit">
-              <Icon.Delete
-                role="presentation"
-                className="bottom-aligned margin-right-05"
-              />
-            </Button>
-          </Form>
-        </ButtonGroup>
-      </ButtonGroup>
+      <ToolbarButtonGroup className="flex-wrap">
+        <Link
+          to="/synonyms/moderation"
+          className="usa-button flex-align-stretch"
+        >
+          <div className="position-relative">
+            <Icon.ArrowBack
+              role="presentation"
+              className="position-absolute top-0 left-0"
+            />
+          </div>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Back
+        </Link>
+        <Form method="POST">
+          <input type="hidden" name="intent" value="delete" />
+          <Button type="submit" outline>
+            <Icon.Delete
+              role="presentation"
+              className="bottom-aligned margin-right-05"
+            />{' '}
+            Delete
+          </Button>
+        </Form>
+      </ToolbarButtonGroup>
+      <h1>Synonym Group</h1>
       <p>
-        Synonym groupings are limited to 25 synonymous event identifiers. If you
-        are adding an event identifier that is already part of a group, it will
-        be removed from the previous association and added to this group.
+        If you are adding an event identifier that is already part of a group,
+        it will be removed from the previous association and added to this
+        group.
       </p>
-      <Form>
-        <FormGroup>
-          <ButtonGroup>
+      <ToolbarButtonGroup className="bg-white z-300">
+        <Form>
+          <ToolbarButtonGroup className="height-auto">
             <input
               placeholder="event id"
+              className="margin-right-1 height-full"
               value={newSynonym}
               key="synonym"
+              id="synonymInput"
+              name="synonym"
+              type="text"
               onChange={(e) => {
                 setNewSynonym(e.currentTarget.value)
               }}
             />
             <Button
               type="button"
-              onClick={(e) => {
+              onClick={() => {
                 if (!newSynonym) return
                 setDeleteSynonyms(
                   deleteSynonyms.filter(function (item) {
@@ -133,9 +141,9 @@ export default function () {
             >
               <Icon.Add role="presentation" /> Add
             </Button>
-          </ButtonGroup>
-        </FormGroup>
-      </Form>
+          </ToolbarButtonGroup>
+        </Form>
+      </ToolbarButtonGroup>
       <Form
         method="POST"
         onSubmit={() => {

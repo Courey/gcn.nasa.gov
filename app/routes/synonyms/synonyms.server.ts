@@ -10,7 +10,7 @@ import type { DynamoDBDocument } from '@aws-sdk/lib-dynamodb'
 import { search as getSearchClient } from '@nasa-gcn/architect-functions-search'
 import crypto from 'crypto'
 
-import type { Synonym } from './synonyms.lib'
+import type { Synonym, SynonymGroup } from './synonyms.lib'
 
 export async function getSynonymsByUuid(synonymId: string) {
   const db = await tables()
@@ -34,7 +34,7 @@ export async function searchSynonymsByEventId({
   page: number
   eventId?: string
 }): Promise<{
-  synonyms: Record<string, string[]>
+  synonyms: SynonymGroup[]
   totalItems: number
   totalPages: number
   page: number
@@ -56,7 +56,7 @@ export async function searchSynonymsByEventId({
       match: {
         eventIds: {
           query: eventId,
-          fuzziness: 'AUTO',
+          fuzziness: '1',
         },
       },
     })
@@ -79,18 +79,13 @@ export async function searchSynonymsByEventId({
   })
 
   const totalPages: number = Math.ceil(totalItems / limit)
-  const results: Record<string, string[]> = {}
-
-  hits.forEach(
+  const results = hits.map(
     ({
       _source: body,
     }: {
-      _source: Synonym
-      fields: { eventId: string; synonymId: string }
-    }) =>
-      results[body.synonymId]
-        ? results[body.synonymId].push(body.eventId)
-        : (results[body.synonymId] = [body.eventId])
+      _source: SynonymGroup
+      fields: { eventIds: []; synonymId: string }
+    }) => body
   )
 
   return {

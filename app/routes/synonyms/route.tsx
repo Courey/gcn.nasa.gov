@@ -10,12 +10,14 @@ import { Outlet } from '@remix-run/react'
 import { GridContainer } from '@trussworks/react-uswds'
 
 import { getUser } from '../_auth/user.server'
+import { feature } from '~/lib/env.server'
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const user = await getUser(request)
   const isModerator = user?.groups.includes('gcn.nasa.gov/circular-moderator')
+  const featureFlagOn = feature('SYNONYMS')
 
-  if (!isModerator) {
+  if (!isModerator || !featureFlagOn) {
     throw new Response(null, {
       status: 403,
     })
