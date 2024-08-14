@@ -79,6 +79,14 @@ describe('putSynonyms', () => {
     expect(mockBatchWrite).not.toHaveBeenCalled()
   })
 
+  test('putSynonyms should not write to DynamoDB if there are invalid additions', async () => {
+    awsSDKMock.mock('DynamoDB.DocumentClient', 'batchWrite', mockBatchWrite)
+
+    await putSynonyms({ synonymId, additions: ["doesn't exist"] })
+
+    expect(mockBatchWrite).not.toHaveBeenCalled()
+  })
+
   test('putSynonyms should write to DynamoDB if there are additions', async () => {
     awsSDKMock.mock('DynamoDB.DocumentClient', 'batchWrite', mockBatchWrite)
     const additions = ['eventId1', 'eventId2']

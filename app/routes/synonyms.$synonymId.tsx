@@ -7,8 +7,14 @@
  */
 import type { ActionFunctionArgs, LoaderFunctionArgs } from '@remix-run/node'
 import { redirect } from '@remix-run/node'
-import { Form, Link, useLoaderData } from '@remix-run/react'
-import { Button, ButtonGroup, FormGroup, Icon } from '@trussworks/react-uswds'
+import { Form, Link, useActionData, useLoaderData } from '@remix-run/react'
+import {
+  Alert,
+  Button,
+  ButtonGroup,
+  FormGroup,
+  Icon,
+} from '@trussworks/react-uswds'
 import { useState } from 'react'
 import invariant from 'tiny-invariant'
 
@@ -45,15 +51,15 @@ export async function action({
     const subtractions =
       getFormDataString(data, 'deleteSynonyms')?.split(',') || ([] as string[])
     const filtered_subtractions = subtractions.filter((sub) => sub)
-    await putSynonyms({
+    const response = await putSynonyms({
       synonymId,
       additions: filtered_additions,
       subtractions: filtered_subtractions,
     })
-    return null
+    return response?.error
   } else if (intent === 'delete') {
     await deleteSynonyms(synonymId)
-    return redirect('/synonyms/moderation')
+    return redirect('/synonyms')
   } else {
     throw new Response('Unknown intent.', {
       status: 400,
@@ -62,6 +68,7 @@ export async function action({
 }
 
 export default function () {
+  const error = useActionData<typeof action>()
   const { eventIds } = useLoaderData<typeof loader>()
   const [deleteSynonyms, setDeleteSynonyms] = useState([] as string[])
   const [synonyms, setSynonyms] = useState(eventIds || [])
@@ -71,10 +78,7 @@ export default function () {
   return (
     <>
       <ToolbarButtonGroup className="flex-wrap">
-        <Link
-          to="/synonyms/moderation"
-          className="usa-button flex-align-stretch"
-        >
+        <Link to="/synonyms" className="usa-button flex-align-stretch">
           <div className="position-relative">
             <Icon.ArrowBack
               role="presentation"
@@ -95,6 +99,11 @@ export default function () {
         </Form>
       </ToolbarButtonGroup>
       <h1>Synonym Group</h1>
+      {error && (
+        <Alert type="error" heading="Error:" headingLevel="h4">
+          {error}
+        </Alert>
+      )}
       <p>
         If you are adding an event identifier that is already part of a group,
         it will be removed from the previous association and added to this

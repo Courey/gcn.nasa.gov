@@ -17,3 +17,14 @@ export interface SynonymGroup {
   synonymId: string
   eventIds: string[]
 }
+
+export interface SynonymValidityCheck {
+  eventId: string
+  count: number
+}
+
+export interface PutSynonymResponse {
+  success: boolean
+  synonymId: null | string
+  error: null | string
+}

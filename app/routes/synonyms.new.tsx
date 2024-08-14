@@ -1,6 +1,7 @@
 import type { ActionFunctionArgs } from '@remix-run/node'
-import { Form, redirect } from '@remix-run/react'
+import { Form, redirect, useActionData } from '@remix-run/react'
 import {
+  Alert,
   Button,
   ButtonGroup,
   FormGroup,
@@ -17,13 +18,18 @@ import { getFormDataString } from '~/lib/utils'
 export async function action({ request }: ActionFunctionArgs) {
   const data = await request.formData()
   const eventIds = getFormDataString(data, 'synonyms')?.split(',')
-  if (!eventIds) return null
-  const newSynonymId = await createSynonyms(eventIds)
+  if (!eventIds) return 'Must include at least 1 eventId.'
+  const { synonymId, success, error } = await createSynonyms(eventIds)
 
-  return redirect(`/synonyms/${newSynonymId}`)
+  if (success) {
+    return redirect(`/synonyms/${synonymId}`)
+  } else {
+    return error
+  }
 }
 
 export default function () {
+  const error = useActionData<typeof action>()
   const formId = useId()
   const [synonyms, setSynonyms] = useState([] as string[])
   const [input, setInput] = useState('')
@@ -31,6 +37,11 @@ export default function () {
   return (
     <>
       <h1>Create New Synonym Group</h1>
+      {error && (
+        <Alert type="error" heading="Error:" headingLevel="h4">
+          {error}
+        </Alert>
+      )}
       <ToolbarButtonGroup className="position-sticky top-0 bg-white margin-bottom-1 padding-top-1 z-300">
         <Form preventScrollReset className="" id={formId}>
           <ButtonGroup>

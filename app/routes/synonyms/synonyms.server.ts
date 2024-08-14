@@ -10,7 +10,8 @@ import type { DynamoDBDocument } from '@aws-sdk/lib-dynamodb'
 import { search as getSearchClient } from '@nasa-gcn/architect-functions-search'
 import crypto from 'crypto'
 
-import type { Synonym, SynonymGroup } from './synonyms.lib'
+import { getCircularsByEventId } from '../circulars/circulars.server'
+import type { PutSynonymResponse, Synonym, SynonymGroup } from './synonyms.lib'
 
 export async function getSynonymsByUuid(synonymId: string) {
   const db = await tables()
@@ -96,6 +97,18 @@ export async function searchSynonymsByEventId({
   }
 }
 
+async function validateEventIds({ eventIds }: { eventIds: string[] }) {
+  const promises = eventIds.map((eventId) => {
+    return getCircularsByEventId(eventId)
+  })
+  const validityResponse = await Promise.all(promises)
+  const filteredResponses = validityResponse.filter((resp) => {
+    return resp.length
+  })
+
+  return filteredResponses.length === eventIds.length
+}
+
 /*
  * If an eventId already has a synonym and is passed in, it will unlink the
  * eventId from the old synonym and the only remaining link will be to the
@@ -106,12 +119,22 @@ export async function searchSynonymsByEventId({
  */
 export async function createSynonyms(synonymousEventIds: string[]) {
   const uuid = crypto.randomUUID()
+  const response = {
+    success: false,
+    synonymId: null,
+    error: null,
+  } as PutSynonymResponse
+  if (!synonymousEventIds.length) {
+    throw new Response('EventIds are required.', { status: 400 })
+  }
+  const db = await tables()
+  const client = db._doc as unknown as DynamoDBDocument
+  const TableName = db.name('synonyms')
 
-  if (synonymousEventIds.length > 0) {
-    const db = await tables()
-    const client = db._doc as unknown as DynamoDBDocument
-    const TableName = db.name('synonyms')
-
+  const isValid = await validateEventIds({ eventIds: synonymousEventIds })
+  if (!isValid) {
+    response.error = 'Invalid eventId'
+  } else {
     await client.batchWrite({
       RequestItems: {
         [TableName]: synonymousEventIds.map((eventId) => ({
@@ -121,9 +144,11 @@ export async function createSynonyms(synonymousEventIds: string[]) {
         })),
       },
     })
+    response.success = true
+    response.synonymId = uuid
   }
 
-  return uuid
+  return response
 }
 
 /*
@@ -143,7 +168,19 @@ export async function putSynonyms({
   additions?: string[]
   subtractions?: string[]
 }) {
+  const response = {
+    success: false,
+    synonymId,
+    error: null,
+  } as PutSynonymResponse
   if (!subtractions?.length && !additions?.length) return
+  if (additions?.length) {
+    const isValid = await validateEventIds({ eventIds: additions })
+    if (!isValid) {
+      response.error = 'Invalid eventId'
+      return response
+    }
+  }
   const db = await tables()
   const client = db._doc as unknown as DynamoDBDocument
   const TableName = db.name('synonyms')
@@ -170,6 +207,8 @@ export async function putSynonyms({
     },
   }
   await client.batchWrite(params)
+  response.success = true
+  return response
 }
 
 /*
