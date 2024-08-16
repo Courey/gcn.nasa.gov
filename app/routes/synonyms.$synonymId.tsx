@@ -8,14 +8,19 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from '@remix-run/node'
 import { redirect } from '@remix-run/node'
 import { Form, Link, useActionData, useLoaderData } from '@remix-run/react'
+import type { ModalRef } from '@trussworks/react-uswds'
 import {
   Alert,
   Button,
   ButtonGroup,
   FormGroup,
   Icon,
+  Modal,
+  ModalFooter,
+  ModalHeading,
+  ModalToggleButton,
 } from '@trussworks/react-uswds'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import invariant from 'tiny-invariant'
 
 import {
@@ -74,6 +79,7 @@ export default function () {
   const [synonyms, setSynonyms] = useState(eventIds || [])
   const [addSynonyms, setAddSynonyms] = useState([] as string[])
   const [newSynonym, setNewSynonym] = useState('')
+  const modalRef = useRef<ModalRef>(null)
 
   return (
     <>
@@ -87,16 +93,13 @@ export default function () {
           </div>
           &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Back
         </Link>
-        <Form method="POST">
-          <input type="hidden" name="intent" value="delete" />
-          <Button type="submit" outline>
-            <Icon.Delete
-              role="presentation"
-              className="bottom-aligned margin-right-05"
-            />{' '}
-            Delete
-          </Button>
-        </Form>
+        <ModalToggleButton modalRef={modalRef} opener type="button">
+          <Icon.Delete
+            role="presentation"
+            className="bottom-aligned margin-right-05"
+          />{' '}
+          Delete
+        </ModalToggleButton>
       </ToolbarButtonGroup>
       <h1>Synonym Group</h1>
       {error && (
@@ -202,6 +205,44 @@ export default function () {
           </Button>
         </FormGroup>
       </Form>
+      <Modal
+        ref={modalRef}
+        id="example-modal-1"
+        aria-labelledby="modal-1-heading"
+        aria-describedby="modal-1-description"
+        renderToPortal={false}
+      >
+        <ModalHeading id="modal-1-heading">
+          Are you sure you want to continue?
+        </ModalHeading>
+        <div className="usa-prose">
+          <p id="modal-1-description">
+            You are about to permanently delete this Synonym Group.
+          </p>
+        </div>
+        <ModalFooter>
+          <ButtonGroup>
+            <Form method="POST">
+              <input type="hidden" name="intent" value="delete" />
+              <Button type="submit" outline>
+                <Icon.Delete
+                  role="presentation"
+                  className="bottom-aligned margin-right-05"
+                />{' '}
+                Delete
+              </Button>
+            </Form>
+            <ModalToggleButton
+              modalRef={modalRef}
+              closer
+              unstyled
+              className="padding-105 text-center"
+            >
+              Go back
+            </ModalToggleButton>
+          </ButtonGroup>
+        </ModalFooter>
+      </Modal>
     </>
   )
 }
