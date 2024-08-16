@@ -593,16 +593,3 @@ function validateCircular({
   if (!(format === undefined || formatIsValid(format)))
     throw new Response('format is invalid', { status: 400 })
 }
-
-export async function getCircularsByEventId(eventId: string) {
-  const db = await tables()
-  const { Items } = await db.circulars.query({
-    IndexName: 'circularsByEventId',
-    KeyConditionExpression: 'eventId = :eventId',
-    ExpressionAttributeValues: {
-      ':eventId': eventId,
-    },
-  })
-
-  return Items as Circular[]
-}

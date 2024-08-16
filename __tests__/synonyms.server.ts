@@ -3,21 +3,58 @@ import type { AWSError, DynamoDB } from 'aws-sdk'
 import * as awsSDKMock from 'aws-sdk-mock'
 import crypto from 'crypto'
 
+import type { Circular } from '~/routes/circulars/circulars.lib'
 import { createSynonyms, putSynonyms } from '~/routes/synonyms/synonyms.server'
 
 jest.mock('@architect/functions')
 const synonymId = 'abcde-abcde-abcde-abcde-abcde'
+const exampleCirculars = [
+  {
+    Items: [
+      {
+        circularId: 1234556,
+        subject: 'subject 1',
+        body: 'very intelligent things',
+        eventId: 'eventId1',
+        createdOn: 12345567,
+        submitter: 'steve',
+      } as Circular,
+    ],
+  },
+  {
+    Items: [
+      {
+        circularId: 1230000,
+        subject: 'subject 2',
+        body: 'more intelligent things',
+        eventId: 'eventId2',
+        createdOn: 12345560,
+        submitter: 'steve',
+      } as Circular,
+    ],
+  },
+  { Items: [] },
+]
 
 describe('createSynonyms', () => {
   beforeAll(() => {
     const mockBatchWrite = jest.fn()
+    const mockQuery = jest.fn()
+
     const mockClient = {
       batchWrite: mockBatchWrite,
+      query: mockQuery,
     }
-    ;(tables as unknown as jest.Mock).mockResolvedValue({
+
+    ;(tables as unknown as jest.Mock).mockReturnValue({
       _doc: mockClient,
       name: () => {
         return 'synonyms'
+      },
+      circulars: {
+        query: mockQuery
+          .mockReturnValueOnce(exampleCirculars[0])
+          .mockReturnValueOnce(exampleCirculars[1]),
       },
     })
 
@@ -46,14 +83,23 @@ describe('createSynonyms', () => {
     const synonymousEventIds = ['eventId1', 'eventId2']
     const result = await createSynonyms(synonymousEventIds)
 
-    expect(result).toBe(synonymId)
+    expect(result.synonymId).toBe(synonymId)
   })
 })
 
 describe('putSynonyms', () => {
   const mockBatchWrite = jest.fn()
+  const mockQuery = jest.fn()
 
   beforeAll(() => {
+    jest.spyOn(crypto, 'randomUUID').mockReturnValue(synonymId)
+  })
+
+  afterAll(() => {
+    jest.restoreAllMocks()
+    awsSDKMock.restore('DynamoDB')
+  })
+  test('putSynonyms should not write to DynamoDB if no additions or subtractions', async () => {
     const mockClient = {
       batchWrite: mockBatchWrite,
     }
@@ -63,15 +109,6 @@ describe('putSynonyms', () => {
         return 'synonyms'
       },
     })
-
-    jest.spyOn(crypto, 'randomUUID').mockReturnValue(synonymId)
-  })
-
-  afterAll(() => {
-    jest.restoreAllMocks()
-    awsSDKMock.restore('DynamoDB')
-  })
-  test('putSynonyms should not write to DynamoDB if no additions or subtractions', async () => {
     awsSDKMock.mock('DynamoDB.DocumentClient', 'batchWrite', mockBatchWrite)
 
     await putSynonyms({ synonymId })
@@ -80,6 +117,20 @@ describe('putSynonyms', () => {
   })
 
   test('putSynonyms should not write to DynamoDB if there are invalid additions', async () => {
+    const mockClient = {
+      batchWrite: mockBatchWrite,
+      query: mockQuery,
+    }
+
+    ;(tables as unknown as jest.Mock).mockReturnValue({
+      _doc: mockClient,
+      name: () => {
+        return 'synonyms'
+      },
+      circulars: {
+        query: mockQuery.mockReturnValueOnce(exampleCirculars[2]),
+      },
+    })
     awsSDKMock.mock('DynamoDB.DocumentClient', 'batchWrite', mockBatchWrite)
 
     await putSynonyms({ synonymId, additions: ["doesn't exist"] })
@@ -88,6 +139,22 @@ describe('putSynonyms', () => {
   })
 
   test('putSynonyms should write to DynamoDB if there are additions', async () => {
+    const mockClient = {
+      batchWrite: mockBatchWrite,
+      query: mockQuery,
+    }
+
+    ;(tables as unknown as jest.Mock).mockReturnValue({
+      _doc: mockClient,
+      name: () => {
+        return 'synonyms'
+      },
+      circulars: {
+        query: mockQuery
+          .mockReturnValueOnce(exampleCirculars[0])
+          .mockReturnValueOnce(exampleCirculars[1]),
+      },
+    })
     awsSDKMock.mock('DynamoDB.DocumentClient', 'batchWrite', mockBatchWrite)
     const additions = ['eventId1', 'eventId2']
     await putSynonyms({ synonymId, additions })
@@ -117,6 +184,15 @@ describe('putSynonyms', () => {
   })
 
   test('putSynonyms should write to DynamoDB if there are subtractions', async () => {
+    const mockClient = {
+      batchWrite: mockBatchWrite,
+    }
+    ;(tables as unknown as jest.Mock).mockResolvedValue({
+      _doc: mockClient,
+      name: () => {
+        return 'synonyms'
+      },
+    })
     awsSDKMock.mock('DynamoDB.DocumentClient', 'batchWrite', mockBatchWrite)
 
     const subtractions = ['eventId3', 'eventId4']
@@ -134,6 +210,22 @@ describe('putSynonyms', () => {
   })
 
   test('putSynonyms should write to DynamoDB if there are additions and subtractions', async () => {
+    const mockClient = {
+      batchWrite: mockBatchWrite,
+      query: mockQuery,
+    }
+
+    ;(tables as unknown as jest.Mock).mockReturnValue({
+      _doc: mockClient,
+      name: () => {
+        return 'synonyms'
+      },
+      circulars: {
+        query: mockQuery
+          .mockReturnValueOnce(exampleCirculars[0])
+          .mockReturnValueOnce(exampleCirculars[1]),
+      },
+    })
     awsSDKMock.mock('DynamoDB.DocumentClient', 'batchWrite', mockBatchWrite)
 
     const additions = ['eventId1', 'eventId2']

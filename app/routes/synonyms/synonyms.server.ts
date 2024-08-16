@@ -10,7 +10,7 @@ import type { DynamoDBDocument } from '@aws-sdk/lib-dynamodb'
 import { search as getSearchClient } from '@nasa-gcn/architect-functions-search'
 import crypto from 'crypto'
 
-import { getCircularsByEventId } from '../circulars/circulars.server'
+import type { Circular } from '../circulars/circulars.lib'
 import type { PutSynonymResponse, Synonym, SynonymGroup } from './synonyms.lib'
 
 export async function getSynonymsByUuid(synonymId: string) {
@@ -99,14 +99,27 @@ export async function searchSynonymsByEventId({
 
 async function validateEventIds({ eventIds }: { eventIds: string[] }) {
   const promises = eventIds.map((eventId) => {
-    return getCircularsByEventId(eventId)
+    return getSynonymMembers(eventId)
   })
+
   const validityResponse = await Promise.all(promises)
   const filteredResponses = validityResponse.filter((resp) => {
     return resp.length
   })
 
   return filteredResponses.length === eventIds.length
+}
+
+async function getSynonymMembers(eventId: string) {
+  const db = await tables()
+  const { Items } = await db.circulars.query({
+    IndexName: 'circularsByEventId',
+    KeyConditionExpression: 'eventId = :eventId',
+    ExpressionAttributeValues: {
+      ':eventId': eventId,
+    },
+  })
+  return Items as Circular[]
 }
 
 /*
