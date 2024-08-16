@@ -92,7 +92,7 @@ export default function () {
                       )
                     }}
                   >
-                    <Icon.Delete />
+                    Remove
                   </Button>
                 </ButtonGroup>
               </li>

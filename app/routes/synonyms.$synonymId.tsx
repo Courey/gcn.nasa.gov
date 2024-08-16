@@ -189,7 +189,7 @@ export default function () {
                       )
                     }}
                   >
-                    <Icon.Delete aria-label="Delete" />
+                    Remove
                   </Button>
                 </ButtonGroup>
               </li>
