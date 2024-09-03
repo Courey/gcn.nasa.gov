@@ -11,7 +11,8 @@ import { search as getSearchClient } from '@nasa-gcn/architect-functions-search'
 import crypto from 'crypto'
 
 import type { Circular } from '../circulars/circulars.lib'
-import type { PutSynonymResponse, Synonym, SynonymGroup } from './synonyms.lib'
+import type { PutSynonymResponse, Synonym, SynonymGroup, SynonymGroupWithMembers } from './synonyms.lib'
+import { groupBy } from 'lodash'
 
 export async function getSynonymsByUuid(synonymId: string) {
   const db = await tables()
@@ -35,7 +36,7 @@ export async function searchSynonymsByEventId({
   page: number
   eventId?: string
 }): Promise<{
-  synonyms: SynonymGroup[]
+  items: SynonymGroup[]
   totalItems: number
   totalPages: number
   page: number
@@ -88,11 +89,39 @@ export async function searchSynonymsByEventId({
       fields: { eventIds: []; synonymId: string }
     }) => body
   )
-
   return {
-    synonyms: results,
+    items: results,
     totalItems,
     totalPages,
+    page,
+  }
+}
+
+export async function groupMembersByEventId({
+  limit = 10,
+  page,
+  eventId,
+}: {
+  limit?: number
+  page: number
+  eventId?: string
+}): Promise<{
+  items: SynonymGroupWithMembers[]
+  totalItems: number
+  totalPages: number
+  page: number
+}> {
+  const searchResults = await searchSynonymsByEventId({limit, page, eventId})
+  const groupedItems = searchResults.items.map(async (group)=>{
+    const promises = group.eventIds.map((eventId)=> getSynonymMembers(eventId))
+    const members = (await Promise.all(promises)).flat()
+    return {group, members}
+  })
+  const items = await Promise.all(groupedItems)
+  return {
+    items,
+    totalItems: searchResults.totalItems,
+    totalPages: searchResults.totalPages,
     page,
   }
 }

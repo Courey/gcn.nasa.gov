@@ -17,12 +17,14 @@ function getPageLink({
   query,
   startDate,
   endDate,
+  view
 }: {
   page: number
   limit?: number
   query?: string
   startDate?: string
   endDate?: string
+  view?: string
 }) {
   const searchParams = new URLSearchParams()
   if (page > 1) searchParams.set('page', page.toString())
@@ -30,14 +32,18 @@ function getPageLink({
   if (query) searchParams.set('query', query)
   if (startDate) searchParams.set('startDate', startDate)
   if (endDate) searchParams.set('endDate', endDate)
+  console.log(`CIRCULAR PAGINATION getPageLink VIEW: ${view}`)
+  searchParams.set('view', view || 'index')
 
   const searchString = searchParams.toString()
+  // console.log(`VIEW THING: ${searchString}`)
   return searchString && `?${searchString}`
 }
 
 export default function ({
   page,
   totalPages,
+  view,
   ...queryStringProps
 }: {
   page: number
@@ -46,7 +52,10 @@ export default function ({
   query?: string
   startDate?: string
   endDate?: string
+  view?: string
 }) {
+  console.log(`CIRCULAR PAGINATION CURRENT PAGE: ${page}`)
+  console.log(`CIRCULAR PAGINATION TOTAL PAGES: ${totalPages}`)
   const pages = usePagination({ currentPage: page, totalPages })
   return (
     <nav aria-label="Pagination" className="usa-pagination">
@@ -55,6 +64,7 @@ export default function ({
           switch (pageProps.type) {
             case 'prev':
               if (totalPages >= page) {
+                console.log(`CIRCULAR PAGINATION PAGE PROPS NUMBER: ${JSON.stringify(pageProps)}`)
                 return (
                   <li
                     className="usa-pagination__item usa-pagination__arrow"
@@ -63,6 +73,7 @@ export default function ({
                     <Link
                       to={getPageLink({
                         page: pageProps.number,
+                        view,
                         ...queryStringProps,
                       })}
                       className="usa-pagination__link usa-pagination__previous-page"
@@ -94,6 +105,7 @@ export default function ({
               }
             case 'next':
               if (totalPages > page) {
+                console.log(`CIRCULAR PAGINATION PAGE PROPS NEXT NUMBER: ${pageProps}`)
                 return (
                   <li
                     className="usa-pagination__item usa-pagination__arrow"
@@ -102,6 +114,7 @@ export default function ({
                     <Link
                       to={getPageLink({
                         page: pageProps.number,
+                        view,
                         ...queryStringProps,
                       })}
                       className="usa-pagination__link usa-pagination__next-page"
@@ -124,6 +137,7 @@ export default function ({
                   <Link
                     to={getPageLink({
                       page: pageProps.number,
+                      view,
                       ...queryStringProps,
                     })}
                     className={classNames('usa-pagination__button', {

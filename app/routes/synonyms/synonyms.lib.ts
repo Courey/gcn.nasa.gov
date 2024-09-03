@@ -6,6 +6,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { Circular } from '../circulars/circulars.lib'
+
 /* Data structure in DynamoDB */
 export interface Synonym {
   eventId: string
@@ -18,6 +20,10 @@ export interface SynonymGroup {
   eventIds: string[]
 }
 
+export interface SynonymGroupWithMembers {
+  group: SynonymGroup
+  members: Circular[]
+}
 export interface SynonymValidityCheck {
   eventId: string
   count: number

@@ -51,7 +51,7 @@ function SynonymList({ synonyms }: { synonyms: SynonymGroup[] }) {
   )
 }
 export default function () {
-  const { synonyms, page, totalPages } = useLoaderData<typeof loader>()
+  const { items, page, totalPages } = useLoaderData<typeof loader>()
   const submit = useSubmit()
   const formId = useId()
   const [searchParams] = useSearchParams()
@@ -108,7 +108,7 @@ export default function () {
           </ToolbarButtonGroup>
         </Grid>
       </GridContainer>
-      <SynonymList synonyms={synonyms} />
+      <SynonymList synonyms={items} />
       <PaginationSelectionFooter
         query={query}
         page={page}
