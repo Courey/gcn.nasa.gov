@@ -18,18 +18,24 @@ export default function ({
   formId: string
   view?: string
 }) {
-  console.log("PAGINATION SELECTION FOOTER START ************>")
+  console.log('PAGINATION SELECTION FOOTER START ************>')
   const submit = useSubmit()
   const isGroupView = view === 'group'
-  const defaultNumberSelection = isGroupView ? "20" : "100"
+  const defaultNumberSelection = isGroupView ? '20' : '100'
   console.log(`VIEW: ${view}`)
   console.log(`DEFAULT SELECTION: ${defaultNumberSelection}`)
-  console.log("PAGINATION SELECTION FOOTER END <************")
+  console.log('PAGINATION SELECTION FOOTER END <************')
   return (
     <div className="display-flex flex-row flex-wrap">
       <div className="display-flex flex-align-self-center margin-right-2 width-auto">
         <div>
-          <input type='hidden' form={formId} name='view' id='view' value={view}></input>
+          <input
+            type="hidden"
+            form={formId}
+            name="view"
+            id="view"
+            value={view}
+          ></input>
           <Select
             id="limit"
             title="Number of results per page"
@@ -43,11 +49,12 @@ export default function ({
           >
             <option value="10">10 / page</option>
             <option value="20">20 / page</option>
-
+            {!isGroupView && (
+              <>
                 <option value="50">50 / page</option>
                 <option value="100">100 / page</option>
-
-
+              </>
+            )}
           </Select>
         </div>
       </div>
