@@ -11,8 +11,12 @@ import { search as getSearchClient } from '@nasa-gcn/architect-functions-search'
 import crypto from 'crypto'
 
 import type { Circular } from '../circulars/circulars.lib'
-import type { PutSynonymResponse, Synonym, SynonymGroup, SynonymGroupWithMembers } from './synonyms.lib'
-import { groupBy } from 'lodash'
+import type {
+  PutSynonymResponse,
+  Synonym,
+  SynonymGroup,
+  SynonymGroupWithMembers,
+} from './synonyms.lib'
 
 export async function getSynonymsByUuid(synonymId: string) {
   const db = await tables()
@@ -101,28 +105,33 @@ export async function groupMembersByEventId({
   limit = 10,
   page,
   eventId,
+  query,
 }: {
   limit?: number
   page: number
   eventId?: string
+  query?: string
 }): Promise<{
   items: SynonymGroupWithMembers[]
   totalItems: number
   totalPages: number
-  page: number
 }> {
-  const searchResults = await searchSynonymsByEventId({limit, page, eventId})
-  const groupedItems = searchResults.items.map(async (group)=>{
-    const promises = group.eventIds.map((eventId)=> getSynonymMembers(eventId))
+  const searchTerm = eventId || query
+  const searchResults = await searchSynonymsByEventId({
+    limit,
+    page,
+    eventId: searchTerm,
+  })
+  const groupedItems = searchResults.items.map(async (group) => {
+    const promises = group.eventIds.map((eventId) => getSynonymMembers(eventId))
     const members = (await Promise.all(promises)).flat()
-    return {group, members}
+    return { group, members }
   })
   const items = await Promise.all(groupedItems)
   return {
     items,
     totalItems: searchResults.totalItems,
     totalPages: searchResults.totalPages,
-    page,
   }
 }
 
@@ -139,7 +148,7 @@ async function validateEventIds({ eventIds }: { eventIds: string[] }) {
   return filteredResponses.length === eventIds.length
 }
 
-async function getSynonymMembers(eventId: string) {
+export async function getSynonymMembers(eventId: string) {
   const db = await tables()
   const { Items } = await db.circulars.query({
     IndexName: 'circularsByEventId',
@@ -149,6 +158,14 @@ async function getSynonymMembers(eventId: string) {
     },
   })
   return Items as Circular[]
+}
+
+export async function getAllSynonymMembers(eventIds: string[]) {
+  const promises = eventIds.map((eventId) => {
+    return getSynonymMembers(eventId)
+  })
+  const results = (await Promise.all(promises)).flat()
+  return results
 }
 
 /*
@@ -280,4 +297,35 @@ export async function deleteSynonyms(synonymId: string) {
     },
   }
   await client.batchWrite(params)
+}
+
+export async function getSynonymById(synonymId: string) {
+  const client = await getSearchClient()
+  const {
+    body: {
+      hits: { hits },
+    },
+  } = await client.search({
+    index: 'synonym-groups',
+    body: {
+      query: {
+        bool: {
+          should: {
+            match: {
+              synonymId,
+            },
+          },
+        },
+      },
+    },
+  })
+  const results = hits.map(
+    ({
+      _source: body,
+    }: {
+      _source: SynonymGroup
+      fields: { eventIds: []; synonymId: string }
+    }) => body
+  )
+  return results[0]
 }

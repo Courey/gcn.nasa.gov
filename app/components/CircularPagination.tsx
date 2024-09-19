@@ -17,7 +17,7 @@ function getPageLink({
   query,
   startDate,
   endDate,
-  view
+  view,
 }: {
   page: number
   limit?: number
@@ -32,15 +32,14 @@ function getPageLink({
   if (query) searchParams.set('query', query)
   if (startDate) searchParams.set('startDate', startDate)
   if (endDate) searchParams.set('endDate', endDate)
-  console.log(`CIRCULAR PAGINATION getPageLink VIEW: ${view}`)
   searchParams.set('view', view || 'index')
 
   const searchString = searchParams.toString()
-  // console.log(`VIEW THING: ${searchString}`)
+
   return searchString && `?${searchString}`
 }
 
-export default function ({
+export default function CircularPagination({
   page,
   totalPages,
   view,
@@ -54,9 +53,8 @@ export default function ({
   endDate?: string
   view?: string
 }) {
-  console.log(`CIRCULAR PAGINATION CURRENT PAGE: ${page}`)
-  console.log(`CIRCULAR PAGINATION TOTAL PAGES: ${totalPages}`)
   const pages = usePagination({ currentPage: page, totalPages })
+
   return (
     <nav aria-label="Pagination" className="usa-pagination">
       <ul className="usa-pagination__list">
@@ -64,7 +62,6 @@ export default function ({
           switch (pageProps.type) {
             case 'prev':
               if (totalPages >= page) {
-                console.log(`CIRCULAR PAGINATION PAGE PROPS NUMBER: ${JSON.stringify(pageProps)}`)
                 return (
                   <li
                     className="usa-pagination__item usa-pagination__arrow"
@@ -105,7 +102,6 @@ export default function ({
               }
             case 'next':
               if (totalPages > page) {
-                console.log(`CIRCULAR PAGINATION PAGE PROPS NEXT NUMBER: ${pageProps}`)
                 return (
                   <li
                     className="usa-pagination__item usa-pagination__arrow"

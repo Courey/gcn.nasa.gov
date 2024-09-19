@@ -6,9 +6,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import { Grid } from '@trussworks/react-uswds'
+import {
+  type Circular,
+  formatDateISO,
+} from 'app/routes/circulars/circulars.lib'
 import type { ReactNode } from 'react'
 
-import { type Circular, formatDateISO } from '../circulars/circulars.lib'
 import TimeAgo from '~/components/TimeAgo'
 
 const submittedHowMap = {

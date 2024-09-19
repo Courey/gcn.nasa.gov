@@ -1,3 +1,10 @@
+/*!
+ * Copyright © 2023 United States Government as represented by the
+ * Administrator of the National Aeronautics and Space Administration.
+ * All Rights Reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 import type { LoaderFunctionArgs } from '@remix-run/node'
 import {
   Form,
@@ -16,7 +23,7 @@ import {
 } from '@trussworks/react-uswds'
 import { useId, useState } from 'react'
 
-import PaginationSelectionFooter from './circulars._archive._index/PaginationSelectionFooter'
+import PaginationSelectionFooter from '../components/PaginationSelectionFooter'
 import type { SynonymGroup } from './synonyms/synonyms.lib'
 import { searchSynonymsByEventId } from './synonyms/synonyms.server'
 import { ToolbarButtonGroup } from '~/components/ToolbarButtonGroup'

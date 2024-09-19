@@ -15,12 +15,12 @@ import {
   Table,
   TextInput,
 } from '@trussworks/react-uswds'
+import { AstroDataContext } from 'app/components/AstroDataContext'
+import { MarkdownBody } from 'app/components/Body'
 import classnames from 'classnames'
 import { type ReactNode, useContext, useState } from 'react'
 import { dedent } from 'ts-dedent'
 
-import { AstroDataContext } from '../circulars.$circularId.($version)/AstroDataContext'
-import { MarkdownBody } from '../circulars.$circularId.($version)/Body'
 import {
   type CircularFormat,
   bodyIsValid,

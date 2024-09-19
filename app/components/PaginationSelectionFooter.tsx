@@ -1,9 +1,16 @@
+/*!
+ * Copyright © 2023 United States Government as represented by the
+ * Administrator of the National Aeronautics and Space Administration.
+ * All Rights Reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 import { useSubmit } from '@remix-run/react'
 import { Select } from '@trussworks/react-uswds'
 
 import CircularPagination from './CircularPagination'
 
-export default function ({
+export default function PaginationSelectionFooter({
   page,
   totalPages,
   limit,
@@ -18,13 +25,9 @@ export default function ({
   formId: string
   view?: string
 }) {
-  console.log('PAGINATION SELECTION FOOTER START ************>')
   const submit = useSubmit()
   const isGroupView = view === 'group'
-  const defaultNumberSelection = isGroupView ? '20' : '100'
-  console.log(`VIEW: ${view}`)
-  console.log(`DEFAULT SELECTION: ${defaultNumberSelection}`)
-  console.log('PAGINATION SELECTION FOOTER END <************')
+
   return (
     <div className="display-flex flex-row flex-wrap">
       <div className="display-flex flex-align-self-center margin-right-2 width-auto">
@@ -41,7 +44,7 @@ export default function ({
             title="Number of results per page"
             className="width-auto height-5 padding-y-0 margin-y-0"
             name="limit"
-            defaultValue={defaultNumberSelection}
+            defaultValue={isGroupView ? '20' : '100'}
             form={formId}
             onChange={({ target: { form } }) => {
               submit(form)

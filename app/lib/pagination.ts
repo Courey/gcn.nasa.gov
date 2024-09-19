@@ -1,3 +1,11 @@
+/*!
+ * Copyright © 2023 United States Government as represented by the
+ * Administrator of the National Aeronautics and Space Administration.
+ * All Rights Reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 type Page =
   | {
       type: 'overflow'
@@ -18,7 +26,6 @@ export function usePagination({
   currentPage: number
   maxSlots?: number
 }) {
-  console.log("START USE PAGINATION ^^^^^^^^^^>")
   const isOnFirstPage = currentPage === 1
   const isOnLastPage = currentPage === totalPages
 
@@ -33,11 +40,7 @@ export function usePagination({
   const currentPageRange: Array<number | 'overflow'> = showOverflow
     ? [currentPage]
     : Array.from({ length: totalPages }).map((_, i) => i + 1)
-  console.log(`USE PAGINATION TOTAL PAGES: ${totalPages}`)
-  console.log(`USE PAGINATION isOnFirstPage: ${isOnFirstPage}`)
-  console.log(`USE PAGINATION isOnLastPage: ${isOnLastPage}`)
-  console.log(`USE PAGINATION middleSlot: ${middleSlot}`)
-  console.log(`USE PAGINATION currentPageRange: ${currentPageRange}`)
+
   if (showOverflow) {
     // Determine range of pages to show based on current page & number of slots
     // Follows logic described at: https://designsystem.digital.gov/components/pagination/
@@ -94,7 +97,7 @@ export function usePagination({
 
   const prevPage = !isOnFirstPage && currentPage - 1
   const nextPage = !isOnLastPage && currentPage + 1
-  console.log("END USE PAGINATION <^^^^^^^^^^")
+
   return [
     ...(prevPage ? [{ type: 'prev', number: prevPage }] : []),
     ...currentPageRange.map((pageNum) =>
