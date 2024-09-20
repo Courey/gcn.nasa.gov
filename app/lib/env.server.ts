@@ -22,9 +22,9 @@ export function getEnvOrDieInProduction(key: string) {
     if (process.env.NODE_ENV === 'production') {
       dieForEnv(key)
     }
-    // console.warn(
-    //   `environment variable ${key} must be set for production. Proceeding anyway since we are in ${process.env.NODE_ENV}`
-    // )
+    console.warn(
+      `environment variable ${key} must be set for production. Proceeding anyway since we are in ${process.env.NODE_ENV}`
+    )
   }
   return result
 }
