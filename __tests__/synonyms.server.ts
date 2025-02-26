@@ -12,6 +12,7 @@ import crypto from 'crypto'
 
 import type { Circular } from '~/routes/circulars/circulars.lib'
 import {
+  getOldestDate,
   moderatorCreateSynonyms,
   putSynonyms,
 } from '~/routes/synonyms/synonyms.server'
@@ -56,7 +57,30 @@ const exampleCirculars = [
       } as Circular,
     ],
   },
-  { Items: [] },
+  {
+    Items: [
+      {
+        circularId: 1234556,
+        subject: 'subject 3',
+        body: 'more space things',
+        eventId: 'eventId3',
+        createdOn: 12345542,
+        submitter: 'steve',
+      } as Circular,
+    ],
+  },
+  {
+    Items: [
+      {
+        circularId: 1230000,
+        subject: 'subject 4',
+        body: 'observations',
+        eventId: 'eventId4',
+        createdOn: 12345000,
+        submitter: 'steve',
+      } as Circular,
+    ],
+  },
 ]
 
 describe('moderatorCreateSynonyms', () => {
@@ -76,8 +100,8 @@ describe('moderatorCreateSynonyms', () => {
       },
       circulars: {
         query: mockQuery
-          .mockReturnValueOnce(exampleCirculars[0])
-          .mockReturnValueOnce(exampleCirculars[1]),
+          .mockReturnValueOnce(exampleCirculars[1])
+          .mockReturnValueOnce(exampleCirculars[0]),
       },
     })
 
@@ -165,36 +189,6 @@ describe('putSynonyms', () => {
     expect(mockBatchWrite).not.toHaveBeenCalled()
   })
 
-  test('putSynonyms should throw 400 response if there are invalid additions', async () => {
-    const mockClient = {
-      batchWrite: mockBatchWrite,
-      query: mockQuery,
-    }
-
-    ;(tables as unknown as jest.Mock).mockReturnValue({
-      _doc: mockClient,
-      name: () => {
-        return 'synonyms'
-      },
-      circulars: {
-        query: mockQuery.mockReturnValueOnce(exampleCirculars[2]),
-      },
-    })
-    awsSDKMock.mock('DynamoDB.DocumentClient', 'batchWrite', mockBatchWrite)
-    try {
-      await putSynonyms({ synonymId, additions: ["doesn't exist"] })
-    } catch (error) {
-      // eslint-disable-next-line jest/no-conditional-expect
-      expect(error).toBeInstanceOf(Response)
-      const convertedError = error as Response
-      // eslint-disable-next-line jest/no-conditional-expect
-      expect(convertedError.status).toBe(400)
-      const errorMessage = await convertedError.text()
-      // eslint-disable-next-line jest/no-conditional-expect
-      expect(errorMessage).toBe('eventId does not exist')
-    }
-  })
-
   test('putSynonyms should write to DynamoDB if there are additions', async () => {
     jest.spyOn(crypto, 'randomUUID').mockReturnValue(synonymId)
     const mockClient = {
@@ -225,6 +219,7 @@ describe('putSynonyms', () => {
                 eventId: 'eventId1',
                 slug: 'eventid1',
                 synonymId,
+                initialDate: 12345567,
               },
             },
           },
@@ -234,6 +229,7 @@ describe('putSynonyms', () => {
                 eventId: 'eventId2',
                 slug: 'eventid2',
                 synonymId,
+                initialDate: 12345560,
               },
             },
           },
@@ -256,6 +252,11 @@ describe('putSynonyms', () => {
       name: () => {
         return 'synonyms'
       },
+      circulars: {
+        query: mockQuery
+          .mockReturnValueOnce(exampleCirculars[2])
+          .mockReturnValueOnce(exampleCirculars[3]),
+      },
     })
     awsSDKMock.mock('DynamoDB.DocumentClient', 'batchWrite', mockBatchWrite)
 
@@ -271,6 +272,7 @@ describe('putSynonyms', () => {
                 eventId: 'eventId3',
                 slug: 'eventid3',
                 synonymId: altSynonymId1,
+                initialDate: 12345542,
               },
             },
           },
@@ -280,6 +282,7 @@ describe('putSynonyms', () => {
                 eventId: 'eventId4',
                 slug: 'eventid4',
                 synonymId: altSynonymId2,
+                initialDate: 12345000,
               },
             },
           },
@@ -307,7 +310,9 @@ describe('putSynonyms', () => {
       circulars: {
         query: mockQuery
           .mockReturnValueOnce(exampleCirculars[0])
-          .mockReturnValueOnce(exampleCirculars[1]),
+          .mockReturnValueOnce(exampleCirculars[1])
+          .mockReturnValueOnce(exampleCirculars[2])
+          .mockReturnValueOnce(exampleCirculars[3]),
       },
     })
     awsSDKMock.mock('DynamoDB.DocumentClient', 'batchWrite', mockBatchWrite)
@@ -326,6 +331,7 @@ describe('putSynonyms', () => {
                 eventId: 'eventId3',
                 slug: 'eventid3',
                 synonymId: altSynonymId1,
+                initialDate: 12345567,
               },
             },
           },
@@ -335,6 +341,7 @@ describe('putSynonyms', () => {
                 eventId: 'eventId4',
                 slug: 'eventid4',
                 synonymId: altSynonymId2,
+                initialDate: 12345560,
               },
             },
           },
@@ -344,6 +351,7 @@ describe('putSynonyms', () => {
                 eventId: 'eventId1',
                 slug: 'eventid1',
                 synonymId,
+                initialDate: 12345542,
               },
             },
           },
@@ -353,6 +361,7 @@ describe('putSynonyms', () => {
                 eventId: 'eventId2',
                 slug: 'eventid2',
                 synonymId,
+                initialDate: 12345000,
               },
             },
           },
@@ -360,5 +369,57 @@ describe('putSynonyms', () => {
       },
     }
     expect(mockBatchWrite).toHaveBeenLastCalledWith(params)
+  })
+})
+
+describe('getOldestDate', () => {
+  afterAll(() => {
+    jest.restoreAllMocks()
+  })
+  test('oldest date of circular should be selected', async () => {
+    const groupOfCirculars = {
+      Items: [
+        {
+          circularId: 1234556,
+          subject: 'subject 1',
+          body: 'very intelligent things',
+          eventId: 'eventId1',
+          createdOn: 1691210429787,
+          submitter: 'steve',
+        } as Circular,
+        {
+          circularId: 1230000,
+          subject: 'subject 2',
+          body: 'more intelligent things',
+          eventId: 'eventId1',
+          createdOn: 1691026667050,
+          submitter: 'steve',
+        } as Circular,
+        {
+          circularId: 1234556,
+          subject: 'subject 3',
+          body: 'even more intelligent things',
+          eventId: 'eventId1',
+          createdOn: 1691220413132,
+          submitter: 'steve',
+        } as Circular,
+      ],
+    }
+
+    const mockQuery = jest.fn().mockReturnValue(groupOfCirculars)
+    const mockClient = {
+      query: mockQuery,
+    }
+    ;(tables as unknown as jest.Mock).mockResolvedValue({
+      _doc: mockClient,
+      name: () => {
+        return 'synonyms'
+      },
+      circulars: {
+        query: mockQuery.mockReturnValue(groupOfCirculars),
+      },
+    })
+    const results = await getOldestDate('eventId1')
+    expect(results).toEqual(1691026667050)
   })
 })

@@ -127,19 +127,6 @@ export async function searchSynonymsByEventId({
   }
 }
 
-async function validateEventIds({ eventIds }: { eventIds: string[] }) {
-  const promises = eventIds.map((eventId) => {
-    return getSynonymMembers(eventId)
-  })
-
-  const validityResponse = await Promise.all(promises)
-  const filteredResponses = validityResponse.filter((resp) => {
-    return resp.length
-  })
-
-  return filteredResponses.length === eventIds.length
-}
-
 /*
  * If an eventId already has a synonym and is passed in, it will unlink the
  * eventId from the old synonym and the only remaining link will be to the
@@ -156,14 +143,17 @@ export async function moderatorCreateSynonyms(synonymousEventIds: string[]) {
   const db = await tables()
   const client = db._doc as unknown as DynamoDBDocument
   const TableName = db.name('synonyms')
-  const isValid = await validateEventIds({ eventIds: synonymousEventIds })
-  if (!isValid) throw new Response('eventId does not exist', { status: 400 })
 
   await client.batchWrite({
     RequestItems: {
-      [TableName]: synonymousEventIds.map((eventId) => ({
+      [TableName]: synonymousEventIds.map(async (eventId) => ({
         PutRequest: {
-          Item: { synonymId: uuid, eventId, slug: slug(eventId) },
+          Item: {
+            synonymId: uuid,
+            eventId,
+            slug: slug(eventId),
+            initialDate: await getOldestDate(eventId),
+          },
         },
       })),
     },
@@ -214,16 +204,13 @@ export async function putSynonyms({
   subtractions?: string[]
 }) {
   if (!subtractions?.length && !additions?.length) return
-  if (additions?.length) {
-    const isValid = await validateEventIds({ eventIds: additions })
-    if (!isValid) throw new Response('eventId does not exist', { status: 400 })
-  }
+
   const db = await tables()
   const client = db._doc as unknown as DynamoDBDocument
   const TableName = db.name('synonyms')
   const writes = []
   if (subtractions?.length) {
-    const subtraction_writes = subtractions.map(async (eventId) => ({
+    const subtraction_promises = subtractions.map(async (eventId) => ({
       PutRequest: {
         Item: {
           synonymId: crypto.randomUUID(),
@@ -233,11 +220,11 @@ export async function putSynonyms({
         },
       },
     }))
-
+    const subtraction_writes = (await Promise.all(subtraction_promises)).flat()
     writes.push(...subtraction_writes)
   }
   if (additions?.length) {
-    const addition_writes = additions.map(async (eventId) => ({
+    const addition_promises = additions.map(async (eventId) => ({
       PutRequest: {
         Item: {
           synonymId,
@@ -247,6 +234,7 @@ export async function putSynonyms({
         },
       },
     }))
+    const addition_writes = (await Promise.all(addition_promises)).flat()
     writes.push(...addition_writes)
   }
   const params = {
@@ -279,9 +267,13 @@ export async function deleteSynonyms(synonymId: string) {
     },
   })
 
-  const writes = results.Items.map(({ eventId }) => ({
+  const writes = results.Items.map(async ({ eventId }) => ({
     PutRequest: {
-      Item: { synonymId: crypto.randomUUID(), eventId },
+      Item: {
+        synonymId: crypto.randomUUID(),
+        eventId,
+        initialDate: await getOldestDate(eventId),
+      },
     },
   }))
   const params = {
@@ -365,11 +357,8 @@ export async function groupMembersByEventId({
   })
   const groupedItems = searchResults.items.map(async (group) => {
     const promises = group.eventIds.map((eventId) => getSynonymMembers(eventId))
-    const members = orderBy(
-      (await Promise.all(promises)).flat(),
-      ['circularId'],
-      ['asc']
-    )
+    const unsortedMembers = (await Promise.all(promises)).flat()
+    const members = orderBy(unsortedMembers, ['circularId'], ['asc'])
     return { ...group, members }
   })
   const items = await Promise.all(groupedItems)
@@ -380,7 +369,7 @@ export async function groupMembersByEventId({
   }
 }
 
-async function getSynonymMembers(eventId: string) {
+export async function getSynonymMembers(eventId: string) {
   const db = await tables()
   const { Items } = await db.circulars.query({
     IndexName: 'circularsByEventId',
