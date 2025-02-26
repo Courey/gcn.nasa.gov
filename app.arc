@@ -74,7 +74,6 @@ circulars
 
 synonyms
   eventId *String
-  initialDate **Number
   PointInTimeRecovery true
 
 auto_increment_metadata
